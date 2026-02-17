@@ -26,12 +26,15 @@ export default function SalesExecutiveLoginPage() {
   const currentCountry = countries.find(c => c.code === selectedCountry) || countries[0];
 
   useEffect(() => {
+    console.log("DEBUG: SalesExecutiveLoginPage MOUNTED");
     // Clear any existing session to ensure a fresh login
     tokenManager.removeToken();
     localStorage.removeItem("user");
+    return () => console.log("DEBUG: SalesExecutiveLoginPage UNMOUNTED");
   }, []);
 
   const handlePhoneSubmit = async () => {
+    console.log("DEBUG: handlePhoneSubmit called");
     setError("");
     if (!phone || phone.length !== currentCountry.dialLength) {
       setError(`Please enter a valid ${currentCountry.dialLength}-digit ${currentCountry.name} phone number`);
@@ -41,6 +44,7 @@ export default function SalesExecutiveLoginPage() {
     setLoading(true);
     try {
       const response = await authAPI.lookupUser({ phone });
+      console.log("DEBUG: lookupUser response", response.data);
       if (response.data.found) {
         setEmployeeName(response.data.name);
         setStep(4);
@@ -48,6 +52,7 @@ export default function SalesExecutiveLoginPage() {
         setError("Phone number not registered.");
       }
     } catch (err) {
+      console.error("DEBUG: lookupUser error", err);
       // If 404, it might come here depending on axios setup
       if (err.response && err.response.status === 404) {
         setError("Phone number not registered.");
@@ -61,6 +66,7 @@ export default function SalesExecutiveLoginPage() {
   };
 
   const handlePasswordSubmit = async () => {
+    console.log("DEBUG: handlePasswordSubmit called");
     setError("");
     if (!password) {
       setError("Please enter a password");
@@ -69,19 +75,23 @@ export default function SalesExecutiveLoginPage() {
 
     setLoading(true);
     try {
+      console.log("DEBUG: calling authAPI.login");
       const response = await authAPI.login({ phone, password, role: "SALES_EXECUTIVE" });
+      console.log("DEBUG: login response", response.data);
 
       // FORCE CLEAR OLD SESSION
       tokenManager.removeToken();
       localStorage.removeItem("user");
 
       if (response.data.token) {
+        console.log("DEBUG: Setting token");
         tokenManager.setToken(response.data.token);
       }
 
       const backendUser = response.data.user;
       const hasRole = backendUser.roles?.some(r => r.name === "SALES_EXECUTIVE");
       if (!hasRole) {
+        console.error("DEBUG: Role check failed. User roles:", backendUser.roles);
         throw new Error("Access Denied: You are not authorized as a SALES EXECUTIVE.");
       }
 
@@ -92,7 +102,9 @@ export default function SalesExecutiveLoginPage() {
         name: backendUser?.first_name || backendUser?.name || 'User'
       };
 
+      console.log("DEBUG: calling login() context");
       login(userData, response.data.token);
+      console.log("DEBUG: navigating to /pos");
       navigate("/pos");
 
     } catch (err) {

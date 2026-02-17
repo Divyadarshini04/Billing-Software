@@ -29,6 +29,7 @@ export default function ProtectedRoute({ element, requiredRole = null, requiredP
   }
 
   if (!isAuthenticated) {
+    console.warn("DEBUG: ProtectedRoute - Not Authenticated. Redirecting to /login");
     return <Navigate to="/login" replace />;
   }
 
@@ -52,10 +53,11 @@ export default function ProtectedRoute({ element, requiredRole = null, requiredP
   // Check permission if required
   if (requiredPermission) {
     const permMatch = hasPermission(userRole, requiredPermission);
-    console.log(`DEBUG: ProtectedRoute Permission Check. Required: ${requiredPermission}, Role: ${userRole}, Match: ${permMatch}`);
-    if (!permMatch) {
-      console.warn("DEBUG: ProtectedRoute Blocking - Permission Missing");
+    console.log(`DEBUG: ProtectedRoute Permission Check [${window.location.pathname}]. Required: ${requiredPermission}, Role: ${userRole}, Match: ${permMatch}`);
 
+    // Log why validation failed
+    if (!permMatch) {
+      console.warn(`DEBUG: ProtectedRoute Blocking - Permission Missing. Role: ${userRole}, Perm: ${requiredPermission}`);
       // Prevent infinite loop if we are already at root
       if (window.location.pathname === "/" || window.location.pathname === "") {
         return (

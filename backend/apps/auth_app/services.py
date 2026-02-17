@@ -156,8 +156,10 @@ class AuthService:
             return user.user_roles.filter(role__name="OWNER").exists() and user.parent is None
             
         elif requested_role == "SALES_EXECUTIVE":
-            # Sales Executive must have a parent
-            return user.parent is not None
+            # Sales Executive must have a parent AND the role assigned
+            if user.parent is None:
+                return False
+            return user.user_roles.filter(role__name="SALES_EXECUTIVE").exists()
             
         # Generic role check
         return user.user_roles.filter(role__name=requested_role).exists()
