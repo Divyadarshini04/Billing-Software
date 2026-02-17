@@ -14,6 +14,7 @@ export default function OwnerLoginPage() {
   const [step, setStep] = useState(2); // Start at Step 2: Phone number for Owner
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [selectedRole] = useState("OWNER");
   const [selectedCountry, setSelectedCountry] = useState("IN");
   const [error, setError] = useState("");
@@ -35,8 +36,20 @@ export default function OwnerLoginPage() {
 
     setLoading(true);
     try {
+      // 1. Lookup user to get name
+      const lookupResponse = await authAPI.lookupUser({ phone });
+      if (lookupResponse.data.found) {
+        setOwnerName(lookupResponse.data.name);
+      } else {
+        setError("Phone number not registered.");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Send OTP
       const response = await authAPI.sendOTP(phone);
       if (response.data.otp) {
+        console.log(`Development Mode - OTP: ${response.data.otp}`);
         alert(`Development Mode - OTP: ${response.data.otp}`);
       }
       setStep(3); // Go to OTP Step
@@ -112,7 +125,8 @@ export default function OwnerLoginPage() {
     try {
       const response = await authAPI.sendOTP(phone);
       if (response.data.otp) {
-        alert(`Development Mode - OTP: ${response.data.otp}`);
+        console.log(`Development Mode - OTP (Resend): ${response.data.otp}`);
+        alert(`Development Mode - OTP (Resend): ${response.data.otp}`);
       }
     } catch (err) {
       clearInterval(interval);
@@ -223,10 +237,11 @@ export default function OwnerLoginPage() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                 <div>
+                  {ownerName && <h3 className="text-lg font-bold text-blue-700 mb-2">Hi, {ownerName}!</h3>}
                   <h3 className="text-sm font-semibold text-gray-900">Verify OTP</h3>
                   <p className="text-xs text-gray-500">Sent to {phone}</p>
                 </div>
-                <button onClick={() => { setStep(2); setOtp(""); setError(""); }} className="text-xs text-blue-500 hover:text-blue-600 font-medium">
+                <button onClick={() => { setStep(2); setOtp(""); setError(""); setOwnerName(""); }} className="text-xs text-blue-500 hover:text-blue-600 font-medium">
                   Edit
                 </button>
               </div>
