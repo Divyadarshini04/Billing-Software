@@ -203,6 +203,10 @@ export const superAdminAPI = {
   updateUnit: (id, unitData) => api.put(`/api/super-admin/units/${id}/`, unitData),
   deleteUnit: (id) => api.delete(`/api/super-admin/units/${id}/`),
 
+  // System Notifications
+  getNotifications: (params = {}) => api.get("/api/super-admin/notifications/", { params }),
+  markNotificationRead: (id) => api.post(`/api/super-admin/notifications/${id}/mark_read/`),
+  markAllNotificationsRead: () => api.post("/api/super-admin/notifications/mark_all_read/"),
 };
 
 // ============ Support APIs ============

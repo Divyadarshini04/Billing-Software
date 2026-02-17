@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../context/PermissionsContext";
+import { useSubscription } from "../context/SubscriptionContext";
 
 export default function ProtectedRoute({ element, requiredRole = null, requiredPermission = null }) {
   const { isAuthenticated, userRole, loading, user } = useAuth();
   const { hasPermission } = usePermissions();
+  const { getSubscriptionStatus } = useSubscription();
   const [timeoutExceeded, setTimeoutExceeded] = useState(false);
 
   // Add a timeout to prevent infinite loading
@@ -76,6 +78,19 @@ export default function ProtectedRoute({ element, requiredRole = null, requiredP
         );
       }
       return <Navigate to="/" replace />;
+    }
+  }
+
+  // Final check: if subscription is expired, block core features
+  const subStatus = getSubscriptionStatus(userRole === 'SALES_EXECUTIVE' ? 'SALES_EXECUTIVE' : 'OWNER');
+  const restrictedPermissions = ['pos_access', 'view_reports', 'manage_inventory', 'manage_staff', 'view_dashboard_stats'];
+
+  if (subStatus.status === 'EXPIRED' && requiredPermission && restrictedPermissions.includes(requiredPermission)) {
+    console.warn(`DEBUG: ProtectedRoute Blocking - Subscription Expired. Role: ${userRole}, Perm: ${requiredPermission}`);
+    // Redirect to a specific path (like dashboard) where the overlay is shown
+    // or if they are already on dashboard, let it render so overlay shows.
+    if (window.location.pathname !== "/dashboard" && window.location.pathname !== "/") {
+      return <Navigate to="/dashboard" replace />;
     }
   }
 

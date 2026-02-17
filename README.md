@@ -1,4 +1,4 @@
-# Geo Billing Software
+# Billing Software
 
 A premium Billing and POS solution built with Django (Backend) and React (Frontend).
 

@@ -69,7 +69,7 @@ class VerifyOTP(APIView):
         if error:
             status_code = status.HTTP_400_BAD_REQUEST
             if "not found" in error: status_code = status.HTTP_404_NOT_FOUND
-            elif "inactive" in error or "Access Denied" in error: status_code = status.HTTP_403_FORBIDDEN
+            elif "inactive" in error or "Access Denied" in error or "expired" in error.lower(): status_code = status.HTTP_403_FORBIDDEN
             elif "Too many" in error: status_code = status.HTTP_429_TOO_MANY_REQUESTS
             
             return Response({"detail": error}, status=status_code)
@@ -105,7 +105,7 @@ class LoginView(APIView):
         if error:
             print(f"DEBUG: Login failed for {credential}. Error: {error}")
             status_code = status.HTTP_401_UNAUTHORIZED
-            if "inactive" in error or "Access Denied" in error: status_code = status.HTTP_403_FORBIDDEN
+            if "inactive" in error or "Access Denied" in error or "expired" in error.lower(): status_code = status.HTTP_403_FORBIDDEN
             return Response({"detail": error}, status=status_code)
         
         print(f"DEBUG: Login successful for {credential}")

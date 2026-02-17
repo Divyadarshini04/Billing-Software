@@ -55,6 +55,7 @@ const SUBSCRIPTION_PLANS = {
 };
 
 // Create DEFAULT_SUBSCRIPTIONS dynamically to avoid hardcoded dates
+// Create DEFAULT_SUBSCRIPTIONS dynamically to avoid hardcoded dates
 const createDefaultSubscriptions = () => ({
   ADMIN: {
     plan: null,
@@ -65,6 +66,19 @@ const createDefaultSubscriptions = () => ({
     isPaid: false,
     duration: 0,
     status: "NO_SUBSCRIPTION",
+    lastPaymentDate: null,
+    nextBillingDate: null,
+    features: {},
+  },
+  OWNER: {
+    plan: "FREE",
+    active: false,
+    startDate: null,
+    endDate: null,
+    trialEndsAt: null,
+    isPaid: false,
+    duration: 0,
+    status: "INACTIVE",
     lastPaymentDate: null,
     nextBillingDate: null,
     features: {},
@@ -87,7 +101,7 @@ const createDefaultSubscriptions = () => ({
 const DEFAULT_SUBSCRIPTIONS = createDefaultSubscriptions();
 
 export function SubscriptionProvider({ children }) {
-  const [subscriptions, setSubscriptions] = useState({});
+  const [subscriptions, setSubscriptions] = useState(DEFAULT_SUBSCRIPTIONS); // Initialize with defaults instead of {}
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -109,30 +123,14 @@ export function SubscriptionProvider({ children }) {
 
       if (response.ok) {
         const data = await response.json();
-        // Transform backend data to frontend structure if needed
-        // Backend returns UserSubscription model fields.
-        // Frontend expects { OWNER: { ... }, SALES_EXECUTIVE: { ... } } structure?
-        // The previous Code used `subscriptions[role]`
-
-        // Assuming the API returns the subscription for the *current user*.
-        // We need to map it to the role-based structure expected by the app.
-        // For now, let's just mock the structure with the real data for the current user's role.
-
-        // Actually, the app seems to expect a dictionary keyed by role.
-        // We'll hydrate the 'OWNER' key with the fetched data if data exists.
-
-        // Note: Backend might define plan details differently.
-        // We will use defaults for now if structure mismatch is high, but try to use live status.
-
         setSubscriptions(prev => ({
           ...DEFAULT_SUBSCRIPTIONS,
           OWNER: {
-            ...DEFAULT_SUBSCRIPTIONS.OWNER, // Fallback
+            ...DEFAULT_SUBSCRIPTIONS.OWNER,
             plan: data.plan?.code || data.plan_name || "FREE",
             active: data.status === 'ACTIVE',
             endDate: data.end_date,
             status: data.status,
-            // ... map other fields
           }
         }));
       } else {
@@ -147,15 +145,16 @@ export function SubscriptionProvider({ children }) {
   };
 
   const getSubscription = (role) => {
-    return subscriptions[role] || DEFAULT_SUBSCRIPTIONS[role];
+    const roleKey = (role === 'ADMIN' || role === 'SUPER_ADMIN') ? 'ADMIN' : (role === 'SALES_EXECUTIVE' ? 'SALES_EXECUTIVE' : 'OWNER');
+    return subscriptions[roleKey] || DEFAULT_SUBSCRIPTIONS[roleKey];
   };
 
   const updateSubscription = (role, subscriptionData) => {
-    // Local update only for UI responsiveness, ideally should POST to backend
+    const roleKey = (role === 'ADMIN' || role === 'SUPER_ADMIN') ? 'ADMIN' : (role === 'SALES_EXECUTIVE' ? 'SALES_EXECUTIVE' : 'OWNER');
     setSubscriptions((prev) => ({
       ...prev,
-      [role]: {
-        ...prev[role],
+      [roleKey]: {
+        ...prev[roleKey],
         ...subscriptionData,
       },
     }));
@@ -163,7 +162,7 @@ export function SubscriptionProvider({ children }) {
 
   const isSubscriptionActive = (role) => {
     const subscription = getSubscription(role);
-    if (!subscription.active) return false;
+    if (!subscription || !subscription.active || !subscription.endDate) return false;
 
     const endDate = new Date(subscription.endDate);
     const now = new Date();
@@ -172,6 +171,8 @@ export function SubscriptionProvider({ children }) {
 
   const getRemainingDays = (role) => {
     const subscription = getSubscription(role);
+    if (!subscription || !subscription.endDate) return 0;
+
     const endDate = new Date(subscription.endDate);
     const now = new Date();
     const remainingTime = endDate - now;
@@ -183,7 +184,7 @@ export function SubscriptionProvider({ children }) {
     const subscription = getSubscription(role);
     const remainingDays = getRemainingDays(role);
 
-    if (!subscription.active) {
+    if (!subscription || !subscription.active) {
       return { status: "INACTIVE", message: "Subscription is inactive", color: "gray" };
     }
 

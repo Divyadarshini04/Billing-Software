@@ -88,6 +88,16 @@ class AuthService:
         if not user.is_active:
             return None, "User account is inactive"
 
+        # Subscription check for Sales Executives
+        if requested_role == "SALES_EXECUTIVE" and user.parent:
+            owner = user.parent
+            try:
+                subscription = owner.subscription
+                if not subscription or subscription.status != 'ACTIVE' or not subscription.is_active():
+                     return None, "Your plan has expired. Please contact your Owner to upgrade the subscription."
+            except Exception:
+                return None, "Your plan has expired. Please contact your Owner to upgrade the subscription."
+
         # 5. Role Validation
         if requested_role:
             has_role = cls._validate_role(user, requested_role)
@@ -115,6 +125,16 @@ class AuthService:
         
         if not user.is_active:
             return None, "User account is inactive"
+
+        # Subscription check for Sales Executives
+        if requested_role == "SALES_EXECUTIVE" and user.parent:
+            owner = user.parent
+            try:
+                subscription = owner.subscription
+                if not subscription or subscription.status != 'ACTIVE' or not subscription.is_active():
+                     return None, "Your plan has expired. Please contact your Owner to upgrade the subscription."
+            except Exception:
+                return None, "Your plan has expired. Please contact your Owner to upgrade the subscription."
 
         if requested_role:
             has_role = cls._validate_role(user, requested_role)

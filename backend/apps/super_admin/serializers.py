@@ -3,7 +3,7 @@ from apps.auth_app.models import User
 from apps.subscription.models import UserSubscription
 from apps.common.models import CompanyProfile
 from apps.users.models import Role, UserRole
-from .models import SystemSettings, ActivityLog, Unit
+from .models import SystemSettings, ActivityLog, Unit, SystemNotification
 
 class SubscriptionInfoSerializer(serializers.ModelSerializer):
     """Serializer for subscription info"""
@@ -234,3 +234,12 @@ class UnitSerializer(serializers.ModelSerializer):
         model = Unit
         fields = ["id", "name", "symbol", "description", "is_active", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+class SystemNotificationSerializer(serializers.ModelSerializer):
+    """Serializer for system notifications"""
+    related_user_name = serializers.CharField(source="related_user.get_full_name", read_only=True)
+    
+    class Meta:
+        model = SystemNotification
+        fields = ["id", "title", "message", "severity", "is_read", "related_user", "related_user_name", "created_at"]
+        read_only_fields = ["id", "created_at"]

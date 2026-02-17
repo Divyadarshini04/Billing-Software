@@ -213,8 +213,15 @@ export default function UserManagement() {
     // Status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(user => {
-        if (statusFilter === "active") return user.is_active;
+        const isExpired = user.subscription?.status === "EXPIRED" ||
+          (user.subscription?.expiry_date && new Date(user.subscription.expiry_date) < new Date());
+        const daysLeft = getDaysRemaining(user.subscription?.expiry_date);
+        const isExpiringSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+
+        if (statusFilter === "active") return user.is_active && !isExpired;
         if (statusFilter === "inactive") return !user.is_active;
+        if (statusFilter === "expired") return isExpired;
+        if (statusFilter === "expiring_soon") return isExpiringSoon;
         return true;
       });
     }
@@ -308,10 +315,14 @@ export default function UserManagement() {
     return colors[planType?.toLowerCase()] || colors.free;
   };
 
-  const getStatusColor = (isActive) => {
+  const getStatusColor = (isActive, subscription) => {
+    const isExpired = subscription?.status === "EXPIRED" ||
+      (subscription?.expiry_date && new Date(subscription.expiry_date) < new Date());
+
+    if (isExpired) return "bg-red-900/40 text-red-400 border border-red-500/50";
     return isActive
       ? "bg-green-900/30 text-green-400"
-      : "bg-red-900/30 text-red-400";
+      : "bg-gray-900/30 text-gray-400";
   };
 
   const getDaysRemaining = (expiryDate) => {
@@ -373,6 +384,8 @@ export default function UserManagement() {
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
+                <option value="expired">Expired</option>
+                <option value="expiring_soon">Expiring Soon</option>
               </select>
             </div>
 
@@ -415,10 +428,12 @@ export default function UserManagement() {
               <tbody>
                 {finalUsers.map((user) => {
                   const daysRemaining = getDaysRemaining(user.subscription?.expiry_date);
+                  const isExpired = user.subscription?.status === "EXPIRED" ||
+                    (user.subscription?.expiry_date && new Date(user.subscription.expiry_date) < new Date());
                   return (
                     <tr
                       key={user.id}
-                      className="border-b border-slate-700 hover:bg-slate-700/50 transition"
+                      className={`border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition ${isExpired ? "bg-red-50/50 dark:bg-red-900/10" : ""}`}
                     >
                       <td className="px-6 py-4">
                         <div className="space-y-1">
@@ -460,7 +475,7 @@ export default function UserManagement() {
                           <div>
                             <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                               <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
-                              <span className="text-sm font-medium">{new Date(user.subscription.expiry_date).toLocaleDateString()}</span>
+                              <span className="text-sm font-medium">{user.subscription?.expiry_date ? new Date(user.subscription.expiry_date).toLocaleDateString() : "-"}</span>
                             </div>
                             <div className={`text-sm mt-1 font-bold ${daysRemaining <= 7 ? "text-red-500 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}>
                               {daysRemaining} days left
@@ -471,8 +486,10 @@ export default function UserManagement() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(user.is_active)}`}>
-                          {user.is_active ? "Active" : "Inactive"}
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(user.is_active, user.subscription)}`}>
+                          {user.subscription?.status === "EXPIRED" || (user.subscription?.expiry_date && new Date(user.subscription.expiry_date) < new Date())
+                            ? "Expired"
+                            : user.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
                       <td className="px-6 py-4">

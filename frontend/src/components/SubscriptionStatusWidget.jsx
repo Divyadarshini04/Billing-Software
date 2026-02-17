@@ -90,7 +90,7 @@ export function SubscriptionStatusWidget() {
           <span className={`px-3 py-1 ${config.badge} text-white text-xs font-bold rounded-full block mb-2`}>
             {remainingDays} DAYS
           </span>
-          <p className="text-xs text-gray-600">Expires {new Date(subscription.endDate).toLocaleDateString()}</p>
+          <p className="text-xs text-gray-600">Expires {subscription?.endDate ? new Date(subscription.endDate).toLocaleDateString() : 'N/A'}</p>
         </div>
       </div>
 
@@ -101,13 +101,12 @@ export function SubscriptionStatusWidget() {
             initial={{ width: 0 }}
             animate={{ width: `${Math.max(0, (remainingDays / subscription.duration) * 100)}%` }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className={`h-2 rounded-full ${
-              status === "ACTIVE"
+            className={`h-2 rounded-full ${status === "ACTIVE"
                 ? "bg-green-600"
                 : status === "EXPIRING_SOON"
                   ? "bg-orange-600"
                   : "bg-red-600"
-            }`}
+              }`}
           />
         </div>
       </div>

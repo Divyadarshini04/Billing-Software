@@ -6,6 +6,8 @@ import { useAuth } from "../context/AuthContext";
 import { usePermissions } from "../context/PermissionsContext";
 import { dashboardAPI } from "../api/apiService";
 import Layout from "../components/Layout";
+import { useSubscription } from "../context/SubscriptionContext";
+import ExpiryOverlay from "../components/Owner/ExpiryOverlay";
 
 const StatCard = ({ icon: Icon, title, value, change, color }) => (
   <motion.div
@@ -66,6 +68,11 @@ export default function OwnerDashboardPage() {
   const [monthlyData, setMonthlyData] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [todayStats, setTodayStats] = useState({ invoices: 0, revenue: 0, transactions: 0 });
+  const { getSubscriptionStatus } = useSubscription();
+
+  const subStatus = getSubscriptionStatus('OWNER');
+  const isExpired = subStatus.status === 'EXPIRED';
+  const isExpiringSoon = subStatus.status === 'EXPIRING_SOON';
 
   // Fetch dashboard data from backend and localStorage
   useEffect(() => {
@@ -196,143 +203,171 @@ export default function OwnerDashboardPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg p-4 md:p-8 transition-colors">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
-        >
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-300 to-blue-300 flex items-center justify-center shadow-lg">
-              <span className="text-2xl">💼</span>
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Dashboard</h1>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Billing & Sales Overview</p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100 dark:from-dark-bg dark:via-dark-bg dark:to-dark-bg transition-colors">
+        {/* Expiry Banner */}
+        {isExpired && (
+          <div className="bg-red-600 text-white text-center py-3 px-4 flex items-center justify-center gap-3 sticky top-0 z-50 animate-pulse">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="font-bold text-sm tracking-wide">🔴 Subscription Expired – Upgrade to continue services.</span>
+            <button
+              onClick={() => navigate("/subscriptions")}
+              className="ml-4 px-3 py-1 bg-white text-red-600 rounded-lg text-xs font-black hover:bg-red-50 transition-colors uppercase"
+            >
+              Upgrade Now
+            </button>
           </div>
-          <p className="text-gray-600 dark:text-gray-300 text-lg">Welcome back! Here's your business overview</p>
-        </motion.div>
+        )}
 
-        {/* Stats Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10"
-        >
-          {stats.map((stat, idx) => (
-            <motion.div key={idx} variants={itemVariants}>
-              <StatCard {...stat} />
-            </motion.div>
-          ))}
-        </motion.div>
+        {isExpiringSoon && !isExpired && (
+          <div className="bg-yellow-500 text-slate-900 text-center py-2 px-4 flex items-center justify-center gap-3 sticky top-0 z-50">
+            <AlertCircle className="w-4 h-4" />
+            <span className="font-bold text-xs uppercase tracking-wider">{subStatus.message} – Renew soon to avoid interruption</span>
+          </div>
+        )}
 
-        {/* Recent Orders & Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-          {/* Recent Orders */}
+        <div className="p-4 md:p-8">
+          {/* Header */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="lg:col-span-2 p-8 rounded-2xl bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border shadow-lg dark:shadow-card-dark hover:shadow-xl transition-shadow"
+            className="mb-12"
           >
-            <div className="flex items-center justify-between gap-3 mb-6">
-              <div className="flex items-center gap-3">
-                <ShoppingCart className="w-6 h-6 text-primary" />
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Recent Orders</h3>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-300 to-blue-300 flex items-center justify-center shadow-lg">
+                <span className="text-2xl">💼</span>
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Dashboard</h1>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">Billing & Sales Overview</p>
+              </div>
+            </div>
+            <p className="text-gray-600 dark:text-gray-300 text-lg">Welcome back! Here's your business overview</p>
+          </motion.div>
+
+          {/* Stats Grid */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10"
+          >
+            {stats.map((stat, idx) => (
+              <motion.div key={idx} variants={itemVariants}>
+                <StatCard {...stat} />
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Recent Orders & Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+            {/* Recent Orders */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="lg:col-span-2 p-8 rounded-2xl bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border shadow-lg dark:shadow-card-dark hover:shadow-xl transition-shadow"
+            >
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-3">
+                  <ShoppingCart className="w-6 h-6 text-primary" />
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Recent Orders</h3>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    onClick={handleViewInvoices}
+                    className="text-sm text-primary font-bold hover:text-primary/80 hover:bg-primary/5 dark:hover:bg-primary/10 px-4 py-2 rounded-lg transition-all"
+                  >
+                    View All →
+                  </motion.button>
                 </div>
+
+              </div>
+              <div className="space-y-3">
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order, idx) => (
+                    <motion.div
+                      key={order.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.45 + idx * 0.1 }}
+                      whileHover={{ backgroundColor: "rgba(16, 185, 129, 0.02)" }}
+                      className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-dark-border bg-gradient-to-r from-gray-50/50 to-transparent dark:from-white/5 dark:to-transparent hover:border-primary/20 transition-all"
+                    >
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 dark:text-white">{order.customer}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{order.id}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-gray-900 dark:text-white">{order.amount}</p>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${order.status === "Completed"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"
+                            : order.status === "Pending"
+                              ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300"
+                              : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
+                            }`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <p className="text-gray-600 dark:text-gray-400 text-center py-8">No recent orders</p>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Quick Actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="p-5 rounded-2xl bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border shadow-lg dark:shadow-card-dark hover:shadow-xl transition-shadow h-fit"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <ShoppingCart className="w-5 h-5 text-accent" />
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Quick Actions</h3>
+                </div>
+              </div>
+              <div className="space-y-2">
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  onClick={handleViewInvoices}
-                  className="text-sm text-primary font-bold hover:text-primary/80 hover:bg-primary/5 dark:hover:bg-primary/10 px-4 py-2 rounded-lg transition-all"
+                  onClick={handleCreateInvoice}
+                  whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(16, 185, 129, 0.15)" }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white font-bold hover:shadow-xl transition-all text-base"
                 >
-                  View All →
+                  Create Invoice
+                </motion.button>
+                <motion.button
+                  onClick={handleAddProduct}
+                  whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(59, 130, 246, 0.15)" }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full py-3 px-4 rounded-xl bg-secondary text-white font-bold hover:shadow-xl transition-all text-base"
+                >
+                  Add Product
+                </motion.button>
+                <motion.button
+                  onClick={handleNewCustomer}
+                  whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(245, 158, 11, 0.15)" }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full py-3 px-4 rounded-xl bg-accent text-white font-bold hover:shadow-xl transition-all text-base"
+                >
+                  New Customer
                 </motion.button>
               </div>
+            </motion.div>
+          </div>
 
-            </div>
-            <div className="space-y-3">
-              {recentOrders.length > 0 ? (
-                recentOrders.map((order, idx) => (
-                  <motion.div
-                    key={order.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.45 + idx * 0.1 }}
-                    whileHover={{ backgroundColor: "rgba(16, 185, 129, 0.02)" }}
-                    className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-dark-border bg-gradient-to-r from-gray-50/50 to-transparent dark:from-white/5 dark:to-transparent hover:border-primary/20 transition-all"
-                  >
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900 dark:text-white">{order.customer}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{order.id}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900 dark:text-white">{order.amount}</p>
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${order.status === "Completed"
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"
-                          : order.status === "Pending"
-                            ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300"
-                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
-                          }`}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <p className="text-gray-600 dark:text-gray-400 text-center py-8">No recent orders</p>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="p-5 rounded-2xl bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border shadow-lg dark:shadow-card-dark hover:shadow-xl transition-shadow h-fit"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <ShoppingCart className="w-5 h-5 text-accent" />
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Quick Actions</h3>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <motion.button
-                onClick={handleCreateInvoice}
-                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(16, 185, 129, 0.15)" }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white font-bold hover:shadow-xl transition-all text-base"
-              >
-                Create Invoice
-              </motion.button>
-              <motion.button
-                onClick={handleAddProduct}
-                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(59, 130, 246, 0.15)" }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full py-3 px-4 rounded-xl bg-secondary text-white font-bold hover:shadow-xl transition-all text-base"
-              >
-                Add Product
-              </motion.button>
-              <motion.button
-                onClick={handleNewCustomer}
-                whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(245, 158, 11, 0.15)" }}
-                whileTap={{ scale: 0.95 }}
-                className="w-full py-3 px-4 rounded-xl bg-accent text-white font-bold hover:shadow-xl transition-all text-base"
-              >
-                New Customer
-              </motion.button>
-            </div>
-          </motion.div>
         </div>
-
       </div>
+
+      <ExpiryOverlay
+        isOpen={isExpired}
+        onUpgrade={() => navigate("/subscriptions")}
+      />
     </Layout>
   );
 }

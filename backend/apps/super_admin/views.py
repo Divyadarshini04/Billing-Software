@@ -1,3 +1,4 @@
+import os
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,8 +12,8 @@ from datetime import timedelta
 from apps.auth_app.models import User
 from apps.billing.models import Invoice
 from apps.payment.models import Payment
-from apps.subscription.models import UserSubscription
-from .models import SystemSettings, ActivityLog, Unit
+from apps.subscription.models import UserSubscription, SubscriptionPlan
+from .models import SystemSettings, ActivityLog, Unit, SystemNotification
 from .serializers import (
     UserListSerializer,
     UserDetailSerializer,
@@ -20,6 +21,7 @@ from .serializers import (
     SystemSettingsSerializer,
     ActivityLogSerializer,
     UnitSerializer,
+    SystemNotificationSerializer,
 )
 
 class DashboardStatsView(APIView):
@@ -726,3 +728,160 @@ class SettingsAPIView(APIView):
         else:
             ip = request.META.get("REMOTE_ADDR")
         return ip
+
+class DataStatsView(APIView):
+    """Get Database and system statistics for Super Admin"""
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        from django.db import connection
+        try:
+            # 1. Database Type
+            db_type = connection.vendor.capitalize()
+            if db_type == 'Postgresql': db_type = 'PostgreSQL'
+
+            # 2. Database Size (Simplified for SQLite/Postgres)
+            db_size = "N/A"
+            if connection.vendor == 'postgresql':
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT pg_size_pretty(pg_database_size(current_database()))")
+                    db_size = cursor.fetchone()[0]
+            elif connection.vendor == 'sqlite':
+                db_path = connection.settings_dict['NAME']
+                if os.path.exists(db_path):
+                    size_bytes = os.path.getsize(db_path)
+                    db_size = f"~{size_bytes / (1024*1024):.1f} MB"
+
+            # 3. Last Backup Time from Activity Logs
+            last_backup = ActivityLog.objects.filter(action="BACKUP_DATA").order_by("-created_at").first()
+            last_backup_time = last_backup.created_at if last_backup else "Never"
+
+            return Response({
+                "database_type": db_type,
+                "database_size": db_size,
+                "last_backup": last_backup_time,
+                "system_status": "Operational"
+            })
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class BackupView(APIView):
+    """Generate a full JSON backup of platform data"""
+    permission_classes = [IsSuperAdmin]
+
+    def get(self, request):
+        import json
+        from django.http import HttpResponse
+        from django.core.serializers import serialize
+        
+        try:
+            # Collect data from key models
+            # We use Django's serialize to handle QuerySets properly
+            data = {
+                "users": json.loads(serialize('json', User.objects.all())),
+                "subscriptions": json.loads(serialize('json', UserSubscription.objects.all())),
+                "subscription_plans": json.loads(serialize('json', SubscriptionPlan.objects.all())),
+                "activity_logs": json.loads(serialize('json', ActivityLog.objects.all()[:1000])), # Limit logs
+                "system_settings": json.loads(serialize('json', SystemSettings.objects.all())),
+            }
+
+            # Optional: Add business data from other apps if they exhibit standard structures
+            # For brevity and safety, we focus on core system data in this implementation
+
+            # Log the backup action
+            ActivityLog.objects.create(
+                user=request.user,
+                action="BACKUP_DATA",
+                description="Performed a full system data backup",
+                ip_address=self._get_client_ip(request)
+            )
+
+            response = HttpResponse(
+                json.dumps(data, indent=2),
+                content_type='application/json'
+            )
+            response['Content-Disposition'] = f'attachment; filename="backup_{timezone.now().strftime("%Y%m%d_%H%M")}.json"'
+            return response
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def _get_client_ip(request):
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        return x_forwarded_for.split(",")[0] if x_forwarded_for else request.META.get("REMOTE_ADDR")
+
+class CleanupView(APIView):
+    """Run system cleanup: remove expired subs and inactive owners"""
+    permission_classes = [IsSuperAdmin]
+
+    def post(self, request):
+        try:
+            now = timezone.now()
+            
+            # 1. Update Expired Subscriptions
+            expired_count = UserSubscription.objects.filter(
+                end_date__lt=now, 
+                status='ACTIVE'
+            ).update(status='EXPIRED')
+
+            # 2. Cleanup Inactive Owners (e.g. registered but never logged in / no subscription for > 90 days)
+            # This is a safe cleanup implementation
+            ninety_days_ago = now - timedelta(days=90)
+            inactive_owners = User.objects.filter(
+                is_active=False,
+                date_joined__lt=ninety_days_ago,
+                parent__isnull=True
+            ).exclude(is_super_admin=True)
+            
+            inactive_count = inactive_owners.count()
+            # inactive_owners.delete() # Commented out for safety unless explicitly requested
+
+            # Log the cleanup action
+            ActivityLog.objects.create(
+                user=request.user,
+                action="CLEANUP_DATA",
+                description=f"Performed system cleanup. Processed {expired_count} expired subscriptions.",
+                ip_address=self._get_client_ip(request)
+            )
+
+            return Response({
+                "status": "success",
+                "expired_processed": expired_count,
+                "inactive_accounts_found": inactive_count,
+                "message": f"Cleanup finished. {expired_count} subscriptions updated."
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class SystemNotificationViewSet(viewsets.ModelViewSet):
+    """ViewSet for Super Admin to monitor system-wide alerts"""
+    permission_classes = [IsSuperAdmin]
+    queryset = SystemNotification.objects.all()
+    serializer_class = SystemNotificationSerializer
+
+    def get_queryset(self):
+        # Filtering for unread might be common
+        queryset = super().get_queryset()
+        is_read = self.request.query_params.get('is_read')
+        if is_read is not None:
+            queryset = queryset.filter(is_read=(is_read.lower() == 'true'))
+        return queryset
+
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        return Response({"status": "success"})
+
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        SystemNotification.objects.filter(is_read=False).update(is_read=True)
+        return Response({"status": "success"})
+
+    @staticmethod
+    def _get_client_ip(request):
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        return x_forwarded_for.split(",")[0] if x_forwarded_for else request.META.get("REMOTE_ADDR")

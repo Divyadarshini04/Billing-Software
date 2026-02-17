@@ -190,3 +190,29 @@ class Unit(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.symbol})"
+
+class SystemNotification(models.Model):
+    """General system notifications/alerts for Super Admin monitoring"""
+    SEVERITY_CHOICES = [
+        ("INFO", "Info"),
+        ("WARNING", "Warning"),
+        ("CRITICAL", "Critical"),
+    ]
+
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default="INFO")
+    is_read = models.BooleanField(default=False, db_index=True)
+    
+    # Optional link to a specific user/object for detail view
+    related_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "System Notification"
+        verbose_name_plural = "System Notifications"
+
+    def __str__(self):
+        return f"[{self.severity}] {self.title} - {self.created_at.strftime('%Y-%m-%d')}"

@@ -30,12 +30,12 @@ import DashboardStats from "../components/SuperAdmin/DashboardStats";
 import UserManagement from "../components/SuperAdmin/UserManagement";
 import SubscriptionManagement from "../components/SuperAdmin/SubscriptionManagement";
 import GlobalReports from "../components/SuperAdmin/GlobalReports";
-import SystemSettings from "../components/SuperAdmin/SystemSettings";
 import SecurityLogs from "../components/SuperAdmin/SecurityLogs";
 import SupportTickets from "../components/SuperAdmin/SupportTickets";
 import DataControls from "../components/SuperAdmin/DataControls";
 import SuperAdminProfile from "../components/SuperAdmin/SuperAdminProfile";
 import LeadsManagementPage from "./SuperAdmin/LeadsManagementPage";
+import SystemNotificationBell from "../components/SuperAdmin/SystemNotificationBell";
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -45,7 +45,6 @@ const TABS = [
   { id: "subscriptions", label: "Subscriptions", icon: DollarSign },
   { id: "reports", label: "Reports", icon: TrendingUp },
 
-  { id: "settings", label: "Settings", icon: Settings },
   { id: "support", label: "Support", icon: HelpCircle },
   { id: "data", label: "Data Controls", icon: Database },
 ];
@@ -92,8 +91,6 @@ export default function SuperAdminPage() {
       case "reports":
         return <GlobalReports />;
 
-      case "settings":
-        return <SystemSettings />;
       case "support":
         return <SupportTickets />;
       case "data":
@@ -119,13 +116,17 @@ export default function SuperAdminPage() {
               </div>
             </div>
 
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <SystemNotificationBell />
+
+              {/* Mobile Menu Toggle */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>

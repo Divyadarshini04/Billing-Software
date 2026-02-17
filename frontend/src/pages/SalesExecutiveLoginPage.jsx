@@ -112,8 +112,14 @@ export default function SalesExecutiveLoginPage() {
     } catch (err) {
       console.error("Login Error:", err);
       const errorMsg = err.response?.data?.detail || err.message || "Login failed.";
-      setError(errorMsg);
-      setPassword(""); // Clear password on failure
+
+      if (errorMsg.toLowerCase().includes("plan has expired")) {
+        setError(errorMsg);
+        setStep(7); // Show expired screen
+      } else {
+        setError(errorMsg);
+        setPassword(""); // Clear password on failure
+      }
     } finally {
       setLoading(false);
     }
@@ -377,6 +383,27 @@ export default function SalesExecutiveLoginPage() {
               >
                 {loading ? "Resetting..." : "Reset Password"}
               </button>
+            </motion.div>
+          )}
+          {step === 7 && (
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+              <div className="text-center p-6 bg-red-50 border border-red-100 rounded-xl space-y-4">
+                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <ShieldCheck className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-red-900">Access Restricted</h3>
+                <p className="text-red-700 text-sm leading-relaxed">
+                  {error || "Your plan has expired. Please contact your Owner to upgrade the subscription."}
+                </p>
+                <div className="pt-4 border-t border-red-200">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Go Back to Login
+                  </button>
+                </div>
+              </div>
             </motion.div>
           )}
         </div>

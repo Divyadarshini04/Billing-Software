@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { motion } from "framer-motion";
 import { Database, Download, Trash2, RotateCcw } from "lucide-react";
 import { NotificationContext } from "../../context/NotificationContext";
@@ -7,6 +7,25 @@ import authAxios from "../../api/authAxios";
 export default function DataControls() {
   const { addNotification } = useContext(NotificationContext);
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    database_type: "Loading...",
+    database_size: "Loading...",
+    last_backup: "Loading...",
+    system_status: "Checking..."
+  });
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await authAxios.get('/api/super-admin/data-stats/');
+      setStats(res.data);
+    } catch (error) {
+      console.error("Error fetching data stats:", error);
+    }
+  };
 
   const handleBackupData = async () => {
     try {
@@ -15,13 +34,13 @@ export default function DataControls() {
       const url = window.URL.createObjectURL(res.data);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `backup_${new Date().toISOString()}.json`);
+      link.setAttribute('download', `backup_${new Date().toISOString().split('T')[0]}.json`);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
       addNotification("Backup downloaded successfully", "success");
+      fetchStats(); // Refresh stats to show new backup time
     } catch (error) {
-
       addNotification("Error creating backup", "error");
     } finally {
       setLoading(false);
@@ -33,10 +52,10 @@ export default function DataControls() {
 
     try {
       setLoading(true);
-      await authAxios.post('/api/super-admin/cleanup/');
-      addNotification("Cleanup completed successfully", "success");
+      const res = await authAxios.post('/api/super-admin/cleanup/');
+      addNotification(res.data.message || "Cleanup completed successfully", "success");
+      fetchStats();
     } catch (error) {
-
       addNotification("Error during cleanup", "error");
     } finally {
       setLoading(false);
@@ -98,15 +117,17 @@ export default function DataControls() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-sm">Database Type</p>
-            <p className="text-slate-900 dark:text-white font-semibold">PostgreSQL</p>
+            <p className="text-slate-900 dark:text-white font-semibold">{stats.database_type}</p>
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-sm">Last Backup</p>
-            <p className="text-slate-900 dark:text-white font-semibold">2024-12-12</p>
+            <p className="text-slate-900 dark:text-white font-semibold">
+              {stats.last_backup !== "Never" ? new Date(stats.last_backup).toLocaleDateString() : "Never"}
+            </p>
           </div>
           <div>
             <p className="text-slate-500 dark:text-slate-400 text-sm">Database Size</p>
-            <p className="text-slate-900 dark:text-white font-semibold">~150 MB</p>
+            <p className="text-slate-900 dark:text-white font-semibold">{stats.database_size}</p>
           </div>
         </div>
       </div>
